@@ -87,7 +87,7 @@ function LoginPage() {
             ))}
           </div>
         </div>
-        <div className="z-10 text-xs opacity-60">© {new Date().getFullYear()} ÉpiceriePro</div>
+        <div className="z-10 text-xs opacity-60">© {new Date().getFullYear()} ÉpiceriePro - Developpé par Martin Manampisoa</div>
         {/* Decorative blobs */}
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-sidebar-primary/20 blur-3xl" />
         <div className="absolute -bottom-32 -left-20 w-96 h-96 rounded-full bg-primary-glow/30 blur-3xl" />
