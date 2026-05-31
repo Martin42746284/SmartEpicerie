@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Boxes, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Plus, Search } from "lucide-react";
+import { Boxes, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Plus, Search, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/stocks")({
   component: StocksPage,
@@ -26,6 +26,16 @@ function StocksPage() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({ product_id: "", type: "in" as "in" | "out" | "adjustment", quantity: 0, reason: "" });
+
+  // Filter states for inventory tab
+  const [statusFilter, setStatusFilter] = useState<"all" | "ok" | "low" | "out">("all");
+  const [minStock, setMinStock] = useState("");
+  const [maxStock, setMaxStock] = useState("");
+
+  // Filter states for movements tab
+  const [movementTypeFilter, setMovementTypeFilter] = useState<"all" | "in" | "out" | "adjustment">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const { data: products } = useQuery({
     queryKey: ["products"],
@@ -44,8 +54,34 @@ function StocksPage() {
   });
 
   const lowStock = (products ?? []).filter((p) => p.stock <= p.low_stock_threshold);
-  const filteredProducts = (products ?? []).filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
-  const filteredMovements = (movements ?? []).filter((m) => m.products?.name?.toLowerCase().includes(search.toLowerCase()));
+
+  const filteredProducts = (products ?? []).filter((p) => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const min = minStock ? parseInt(minStock) : -Infinity;
+    const max = maxStock ? parseInt(maxStock) : Infinity;
+    const matchesStock = p.stock >= min && p.stock <= max;
+
+    let matchesStatus = true;
+    if (statusFilter === "ok") matchesStatus = p.stock > p.low_stock_threshold;
+    else if (statusFilter === "low") matchesStatus = p.stock <= p.low_stock_threshold && p.stock > 0;
+    else if (statusFilter === "out") matchesStatus = p.stock === 0;
+
+    return matchesSearch && matchesStock && matchesStatus;
+  });
+
+  const filteredMovements = (movements ?? []).filter((m) => {
+    const matchesSearch = m.products?.name?.toLowerCase().includes(search.toLowerCase());
+    const matchesType = movementTypeFilter === "all" || m.type === movementTypeFilter;
+
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      const movementDate = new Date(m.created_at).getTime();
+      if (dateFrom) matchesDate = matchesDate && movementDate >= new Date(dateFrom).getTime();
+      if (dateTo) matchesDate = matchesDate && movementDate <= new Date(new Date(dateTo).setHours(23, 59, 59, 999)).getTime();
+    }
+
+    return matchesSearch && matchesType && matchesDate;
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -133,11 +169,16 @@ function StocksPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Rechercher un produit…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardHeader className="pb-4">
+          <div className="relative max-w-2xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un produit par nom ou code…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-12 py-6 text-base border-primary/30 focus:border-primary"
+            />
           </div>
         </CardHeader>
       </Card>
@@ -147,7 +188,67 @@ function StocksPage() {
           <TabsTrigger value="inventory">Inventaire</TabsTrigger>
           <TabsTrigger value="movements">Mouvements</TabsTrigger>
         </TabsList>
-        <TabsContent value="inventory" className="mt-4">
+        <TabsContent value="inventory" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Filtres</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">Statut</Label>
+                  <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="ok">OK</SelectItem>
+                      <SelectItem value="low">Faible</SelectItem>
+                      <SelectItem value="out">Rupture</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="min-stock" className="text-sm">Stock min</Label>
+                  <Input
+                    id="min-stock"
+                    type="number"
+                    placeholder="Min"
+                    value={minStock}
+                    onChange={(e) => setMinStock(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="max-stock" className="text-sm">Stock max</Label>
+                  <Input
+                    id="max-stock"
+                    type="number"
+                    placeholder="Max"
+                    value={maxStock}
+                    onChange={(e) => setMaxStock(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-9 gap-2"
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setMinStock("");
+                      setMaxStock("");
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                    Réinitialiser
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="px-0 sm:px-6 pt-6">
               <div className="overflow-x-auto">
@@ -184,7 +285,65 @@ function StocksPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="movements" className="mt-4">
+        <TabsContent value="movements" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Filtres</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">Type</Label>
+                  <Select value={movementTypeFilter} onValueChange={(v: any) => setMovementTypeFilter(v)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="in">Entrée</SelectItem>
+                      <SelectItem value="out">Sortie</SelectItem>
+                      <SelectItem value="adjustment">Ajustement</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date-from" className="text-sm">Du</Label>
+                  <Input
+                    id="date-from"
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date-to" className="text-sm">Au</Label>
+                  <Input
+                    id="date-to"
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-9 gap-2"
+                    onClick={() => {
+                      setMovementTypeFilter("all");
+                      setDateFrom("");
+                      setDateTo("");
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                    Réinitialiser
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="px-0 sm:px-6 pt-6">
               <div className="overflow-x-auto">

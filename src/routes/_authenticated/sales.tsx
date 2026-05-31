@@ -53,7 +53,7 @@ function NewSale() {
   const { data: products } = useQuery({
     queryKey: ["products-for-sale"],
     queryFn: async () => {
-      const { data } = await supabase.from("products").select("id, name, sale_price, purchase_price, stock").gt("stock", 0).order("name");
+      const { data } = await supabase.from("products").select("id, name, sale_price, purchase_price, stock").order("name");
       return data ?? [];
     },
   });
@@ -147,13 +147,27 @@ function NewSale() {
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[60vh] overflow-y-auto">
             {filtered.map((p) => (
-              <button key={p.id} onClick={() => add(p)} className="text-left p-3 rounded-lg border bg-card hover:border-primary hover:shadow-md transition-all">
+              <button
+                key={p.id}
+                onClick={() => add(p)}
+                disabled={p.stock === 0}
+                className={`text-left p-3 rounded-lg border transition-all ${
+                  p.stock === 0
+                    ? "bg-muted opacity-60 cursor-not-allowed border-destructive/30 hover:shadow-none"
+                    : "bg-card hover:border-primary hover:shadow-md"
+                }`}
+              >
                 <div className="font-medium text-sm line-clamp-2">{p.name}</div>
-                <div className="text-primary font-semibold text-sm mt-1">{fmtMoney(p.sale_price)}</div>
-                <div className="text-xs text-muted-foreground">Stock: {p.stock}</div>
+                <div className={`font-semibold text-sm mt-1 ${p.stock === 0 ? "text-destructive" : "text-primary"}`}>
+                  {fmtMoney(p.sale_price)}
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <div className="text-xs text-muted-foreground">Stock: {p.stock}</div>
+                  {p.stock === 0 && <span className="text-xs font-semibold text-destructive">Rupture</span>}
+                </div>
               </button>
             ))}
-            {filtered.length === 0 && <p className="col-span-full text-center text-muted-foreground py-8 text-sm">Aucun produit disponible</p>}
+            {filtered.length === 0 && <p className="col-span-full text-center text-muted-foreground py-8 text-sm">Aucun produit trouvé</p>}
           </div>
         </CardContent>
       </Card>
