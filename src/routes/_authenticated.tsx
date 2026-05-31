@@ -47,8 +47,8 @@ function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-display text-base font-bold leading-tight text-sidebar-foreground">ÉpiceriePro</span>
-              <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Gestion d'épicerie</span>
+              <span className="font-display text-lg font-bold leading-tight text-sidebar-foreground">ÉpiceriePro</span>
+              <span className="text-xs uppercase tracking-wider text-sidebar-foreground/60">Gestion d'épicerie</span>
             </div>
           )}
         </div>
@@ -61,7 +61,7 @@ function AppSidebar() {
                 const active = path.startsWith(item.to);
                 return (
                   <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="text-lg">
                       <Link to={item.to}>
                         <item.icon className="w-4 h-4" />
                         <span>{item.label}</span>
@@ -74,7 +74,7 @@ function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="text-xs text-sidebar-foreground/50 px-3 py-2 border-t border-sidebar-border">
+      <SidebarFooter className="text-sm text-sidebar-foreground/50 px-3 py-2 border-t border-sidebar-border">
         {!collapsed && <span>v1.0 · MVP</span>}
       </SidebarFooter>
     </Sidebar>
