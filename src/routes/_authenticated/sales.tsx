@@ -48,6 +48,7 @@ function NewSale() {
   const [customer, setCustomer] = useState("");
   const [receipt, setReceipt] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [insufficientStock, setInsufficientStock] = useState<CartLine | null>(null);
 
   const { data: products } = useQuery({
     queryKey: ["products-for-sale"],
@@ -85,6 +86,20 @@ function NewSale() {
   async function checkout() {
     if (cart.length === 0 || !user) return;
     setBusy(true);
+
+    // Verify stock availability before checkout
+    const { data: currentProducts, error: fetchError } = await supabase.from("products").select("id, stock").in("id", cart.map(l => l.product_id));
+    if (fetchError || !currentProducts) { setBusy(false); return toast.error("Erreur lors de la vérification du stock"); }
+
+    for (const item of cart) {
+      const current = currentProducts.find(p => p.id === item.product_id);
+      if (!current || current.stock < item.quantity) {
+        setBusy(false);
+        setInsufficientStock(item);
+        return;
+      }
+    }
+
     const { data: sale, error } = await supabase.from("sales").insert({
       user_id: user.id, total, profit, customer_name: customer || null,
     }).select().single();
@@ -202,6 +217,27 @@ function NewSale() {
             </div>
           )}
           <Button onClick={() => window.print()} variant="outline" className="gap-2"><Printer className="w-4 h-4" /> Imprimer</Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!insufficientStock} onOpenChange={(o) => !o && setInsufficientStock(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle className="text-center text-destructive">Stock insuffisant</DialogTitle></DialogHeader>
+          {insufficientStock && (
+            <div className="space-y-4">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 space-y-2">
+                <p className="font-medium">{insufficientStock.product_name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Quantité demandée : <span className="font-semibold text-foreground">{insufficientStock.quantity}</span>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Stock disponible : <span className="font-semibold text-destructive">{insufficientStock.stock}</span>
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">Veuillez ajuster les quantités dans votre panier avant de continuer.</p>
+            </div>
+          )}
+          <Button onClick={() => setInsufficientStock(null)} className="w-full">Fermer</Button>
         </DialogContent>
       </Dialog>
     </div>

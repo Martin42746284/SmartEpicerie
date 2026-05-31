@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Boxes, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Plus } from "lucide-react";
+import { Boxes, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Plus, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/stocks")({
   component: StocksPage,
@@ -24,6 +24,7 @@ function StocksPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState({ product_id: "", type: "in" as "in" | "out" | "adjustment", quantity: 0, reason: "" });
 
   const { data: products } = useQuery({
@@ -43,6 +44,8 @@ function StocksPage() {
   });
 
   const lowStock = (products ?? []).filter((p) => p.stock <= p.low_stock_threshold);
+  const filteredProducts = (products ?? []).filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredMovements = (movements ?? []).filter((m) => m.products?.name?.toLowerCase().includes(search.toLowerCase()));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
