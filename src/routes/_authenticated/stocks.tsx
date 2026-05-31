@@ -133,6 +133,15 @@ function StocksPage() {
         </Card>
       )}
 
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Rechercher un produit…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
+        </CardHeader>
+      </Card>
+
       <Tabs defaultValue="inventory">
         <TabsList>
           <TabsTrigger value="inventory">Inventaire</TabsTrigger>
@@ -153,7 +162,10 @@ function StocksPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(products ?? []).map((p) => (
+                    {filteredProducts.length === 0 && (
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Aucun produit trouvé</TableCell></TableRow>
+                    )}
+                    {filteredProducts.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{p.code ?? "—"}</TableCell>
@@ -187,8 +199,8 @@ function StocksPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(movements ?? []).length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Aucun mouvement</TableCell></TableRow>}
-                    {(movements ?? []).map((m: any) => (
+                    {filteredMovements.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Aucun mouvement</TableCell></TableRow>}
+                    {filteredMovements.map((m: any) => (
                       <TableRow key={m.id}>
                         <TableCell className="text-sm">{fmtDate(m.created_at)}</TableCell>
                         <TableCell className="font-medium">{m.products?.name ?? "—"}</TableCell>
