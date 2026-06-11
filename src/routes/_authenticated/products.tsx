@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/lib/auth";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,19 +52,32 @@ function ProductsPage() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const { isOnline, addToQueue, saveLocalData } = useOfflineSync();
 
   const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*,categories(*)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as any[];
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*,categories(*)")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        if (data) saveLocalData("products", data);
+        return data as any[];
+      } catch (error) {
+        console.error("Erreur réseau, chargement depuis le cache local");
+        return JSON.parse(localStorage.getItem("epicerie_offline_data") || "{}")["products"] || [];
+      }
     },
-    refetchInterval: 5000,
+    refetchInterval: isOnline ? 5000 : undefined,
   });
+
+  useEffect(() => {
+    if (isOnline && products) {
+      saveLocalData("products", products);
+    }
+  }, [isOnline, products, saveLocalData]);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -79,10 +93,17 @@ function ProductsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Supprimer ce produit ?")) return;
-    const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Produit supprimé");
+
+    if (isOnline) {
+      const { error } = await supabase.from("products").delete().eq("id", id);
+      if (error) toast.error(error.message);
+      else {
+        toast.success("Produit supprimé");
+        qc.invalidateQueries({ queryKey: ["products"] });
+      }
+    } else {
+      addToQueue("delete", "products", { id });
+      toast.success("Suppression enregistrée - Synchronisation en attente");
       qc.invalidateQueries({ queryKey: ["products"] });
     }
   }
@@ -221,6 +242,7 @@ function ProductDialog({
   categories: any[];
   onSaved: () => void;
 }) {
+  const { isOnline, addToQueue } = useOfflineSync();
   const [form, setForm] = useState({
     name: editing?.name ?? "",
     category_id: editing?.category_id ?? "",
@@ -247,14 +269,34 @@ function ProductDialog({
       stock: Number(form.stock),
       low_stock_threshold: Number(form.low_stock_threshold),
     };
-    const res = editing
-      ? await supabase.from("products").update(payload).eq("id", editing.id)
-      : await supabase.from("products").insert(payload);
-    setBusy(false);
-    if (res.error) toast.error(res.error.message);
-    else {
-      toast.success(editing ? "Produit modifié" : "Produit ajouté");
-      onSaved();
+
+    try {
+      if (isOnline) {
+        const res = editing
+          ? await supabase.from("products").update(payload).eq("id", editing.id)
+          : await supabase.from("products").insert(payload);
+
+        setBusy(false);
+        if (res.error) toast.error(res.error.message);
+        else {
+          toast.success(editing ? "Produit modifié" : "Produit ajouté");
+          onSaved();
+        }
+      } else {
+        if (editing) {
+          addToQueue("update", "products", { id: editing.id, ...payload });
+        } else {
+          addToQueue("create", "products", payload);
+        }
+        setBusy(false);
+        toast.success(
+          `${editing ? "Modification" : "Création"} enregistrée - Synchronisation en attente`,
+        );
+        onSaved();
+      }
+    } catch (error) {
+      setBusy(false);
+      toast.error((error as any)?.message || "Une erreur est survenue");
     }
   }
 
