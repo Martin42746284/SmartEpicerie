@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { fmtMoney, fmtDateOnly } from "@/lib/format";
 import { FileBarChart, Download, FileSpreadsheet, FileText } from "lucide-react";
 import jsPDF from "jspdf";
@@ -18,8 +25,10 @@ export const Route = createFileRoute("/_authenticated/reports")({
 });
 
 function ReportsPage() {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const monthAgo = new Date(today); monthAgo.setDate(monthAgo.getDate() - 30);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const monthAgo = new Date(today);
+  monthAgo.setDate(monthAgo.getDate() - 30);
   const [from, setFrom] = useState(monthAgo.toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
 
@@ -28,7 +37,12 @@ function ReportsPage() {
     queryFn: async () => {
       const start = new Date(from + "T00:00:00").toISOString();
       const end = new Date(to + "T23:59:59").toISOString();
-      const { data } = await supabase.from("sales").select("*, sale_items(*)").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false });
+      const { data } = await supabase
+        .from("sales")
+        .select("*, sale_items(*)")
+        .gte("created_at", start)
+        .lte("created_at", end)
+        .order("created_at", { ascending: false });
       return data ?? [];
     },
   });
@@ -50,11 +64,14 @@ function ReportsPage() {
 
   const topProducts = useMemo(() => {
     const m = new Map<string, { name: string; qty: number; revenue: number }>();
-    (sales ?? []).forEach((s: any) => s.sale_items?.forEach((it: any) => {
-      const e = m.get(it.product_name) ?? { name: it.product_name, qty: 0, revenue: 0 };
-      e.qty += it.quantity; e.revenue += Number(it.subtotal);
-      m.set(it.product_name, e);
-    }));
+    (sales ?? []).forEach((s: any) =>
+      s.sale_items?.forEach((it: any) => {
+        const e = m.get(it.product_name) ?? { name: it.product_name, qty: 0, revenue: 0 };
+        e.qty += it.quantity;
+        e.revenue += Number(it.subtotal);
+        m.set(it.product_name, e);
+      }),
+    );
     return Array.from(m.values()).sort((a, b) => b.revenue - a.revenue);
   }, [sales]);
 
@@ -63,16 +80,25 @@ function ReportsPage() {
     const csv = [headers.join(","), ...rows.map((r) => r.map(esc).join(","))].join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
     URL.revokeObjectURL(url);
   }
 
   function exportSalesPDF() {
     const doc = new jsPDF();
-    doc.setFontSize(16); doc.text("Rapport de ventes", 14, 18);
-    doc.setFontSize(10); doc.setTextColor(120);
+    doc.setFontSize(16);
+    doc.text("Rapport de ventes", 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(120);
     doc.text(`Période : ${fmtDateOnly(from)} → ${fmtDateOnly(to)}`, 14, 26);
-    doc.text(`CA : ${fmtMoney(summary.revenue)}  ·  Bénéfice : ${fmtMoney(summary.profit)}  ·  Ventes : ${summary.count}`, 14, 32);
+    doc.text(
+      `CA : ${fmtMoney(summary.revenue)}  ·  Bénéfice : ${fmtMoney(summary.profit)}  ·  Ventes : ${summary.count}`,
+      14,
+      32,
+    );
     autoTable(doc, {
       startY: 40,
       head: [["N°", "Date", "Client", "Articles", "Bénéfice", "Total"]],
@@ -92,171 +118,277 @@ function ReportsPage() {
 
   function exportStockPDF() {
     const doc = new jsPDF();
-    doc.setFontSize(16); doc.text("Rapport de stock", 14, 18);
-    doc.setFontSize(10); doc.setTextColor(120);
+    doc.setFontSize(16);
+    doc.text("Rapport de stock", 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(120);
     doc.text(`Date : ${fmtDateOnly(new Date())}`, 14, 26);
     autoTable(doc, {
       startY: 32,
       head: [["Produit", "Catégorie", "Stock", "Seuil", "Valeur stock"]],
       body: (products ?? []).map((p: any) => [
-        p.name, p.categories?.name ?? "—", p.stock, p.low_stock_threshold, fmtMoney(p.stock * Number(p.purchase_price)),
+        p.name,
+        p.categories?.name ?? "—",
+        p.stock,
+        p.low_stock_threshold,
+        fmtMoney(p.stock * Number(p.purchase_price)),
       ]),
       headStyles: { fillColor: [30, 50, 90] },
       styles: { fontSize: 9 },
     });
-    doc.save(`rapport-stock-${new Date().toISOString().slice(0,10)}.pdf`);
+    doc.save(`rapport-stock-${new Date().toISOString().slice(0, 10)}.pdf`);
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 max-w-[1600px] mx-auto">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-display font-bold flex items-center gap-2"><FileBarChart className="w-7 h-7 text-primary" />Rapports</h1>
+    <div className="space-y-4 w-full">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6">
+        <h1 className="text-2xl sm:text-3xl font-display font-bold flex items-center gap-2">
+          <FileBarChart className="w-7 h-7 text-primary" />
+          Rapports
+        </h1>
         <p className="text-muted-foreground text-sm">Analyses, exports PDF et Excel.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Période</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label>Du</Label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label>Au</Label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryStat label="Ventes" value={String(summary.count)} />
-        <SummaryStat label="Articles vendus" value={String(summary.items)} />
-        <SummaryStat label="Chiffre d'affaires" value={fmtMoney(summary.revenue)} highlight />
-        <SummaryStat label="Bénéfice" value={fmtMoney(summary.profit)} highlight />
-      </div>
-
-      <Tabs defaultValue="sales">
-        <TabsList>
-          <TabsTrigger value="sales">Ventes</TabsTrigger>
-          <TabsTrigger value="products">Produits</TabsTrigger>
-          <TabsTrigger value="stock">Stock</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="sales" className="mt-4">
-          <Card>
-            <CardHeader className="flex-row items-center justify-between flex-wrap gap-2">
-              <div>
-                <CardTitle>Détail des ventes</CardTitle>
-                <CardDescription>{(sales ?? []).length} transaction(s)</CardDescription>
+      <div className="px-4 sm:px-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Période</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-2 sm:gap-3">
+              <div className="space-y-1 flex-1">
+                <Label className="text-sm">Du</Label>
+                <Input
+                  type="date"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className="text-sm"
+                />
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => exportCSV(
-                  (sales ?? []).map((s: any) => [s.id, s.created_at, s.customer_name, s.sale_items?.length ?? 0, s.profit, s.total]),
-                  ["ID", "Date", "Client", "Articles", "Bénéfice", "Total"],
-                  `ventes-${from}-${to}.csv`
-                )}><FileSpreadsheet className="w-4 h-4" /> Excel/CSV</Button>
-                <Button size="sm" className="gap-2" onClick={exportSalesPDF}><FileText className="w-4 h-4" /> PDF</Button>
+              <div className="space-y-1 flex-1">
+                <Label className="text-sm">Au</Label>
+                <Input
+                  type="date"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  className="text-sm"
+                />
               </div>
-            </CardHeader>
-            <CardContent className="px-0 sm:px-6">
-              <div className="overflow-x-auto">
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+          <SummaryStat label="Ventes" value={String(summary.count)} />
+          <SummaryStat label="Articles vendus" value={String(summary.items)} />
+          <SummaryStat label="Chiffre d'affaires" value={fmtMoney(summary.revenue)} highlight />
+          <SummaryStat label="Bénéfice" value={fmtMoney(summary.profit)} highlight />
+        </div>
+
+        <Tabs defaultValue="sales">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="sales" className="text-xs sm:text-sm">
+              Ventes
+            </TabsTrigger>
+            <TabsTrigger value="products" className="text-xs sm:text-sm">
+              Produits
+            </TabsTrigger>
+            <TabsTrigger value="stock" className="text-xs sm:text-sm">
+              Stock
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="sales" className="mt-4">
+            <Card>
+              <CardHeader className="flex-col sm:flex-row items-start sm:items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle className="text-base sm:text-lg">Détail des ventes</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    {(sales ?? []).length} transaction(s)
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-xs sm:text-sm"
+                    onClick={() =>
+                      exportCSV(
+                        (sales ?? []).map((s: any) => [
+                          s.id,
+                          s.created_at,
+                          s.customer_name,
+                          s.sale_items?.length ?? 0,
+                          s.profit,
+                          s.total,
+                        ]),
+                        ["ID", "Date", "Client", "Articles", "Bénéfice", "Total"],
+                        `ventes-${from}-${to}.csv`,
+                      )
+                    }
+                  >
+                    <FileSpreadsheet className="w-3 h-3 sm:w-4 sm:h-4" /> Excel/CSV
+                  </Button>
+                  <Button size="sm" className="gap-2 text-xs sm:text-sm" onClick={exportSalesPDF}>
+                    <FileText className="w-3 h-3 sm:w-4 sm:h-4" /> PDF
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="px-3 sm:px-6 pb-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Client</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">Articles</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">Bénéfice</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(sales ?? []).map((s: any) => (
+                        <TableRow key={s.id}>
+                          <TableCell className="text-xs sm:text-sm">
+                            {fmtDateOnly(s.created_at)}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            {s.customer_name ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right text-xs sm:text-sm">
+                            {s.sale_items?.length ?? 0}
+                          </TableCell>
+                          <TableCell className="text-right text-success text-xs sm:text-sm">
+                            {fmtMoney(s.profit)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-xs sm:text-sm">
+                            {fmtMoney(s.total)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="products" className="mt-4">
+            <Card>
+              <CardHeader className="flex-col sm:flex-row items-start sm:items-center justify-between flex-wrap gap-2">
+                <CardTitle className="text-base sm:text-lg">Produits les plus vendus</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-xs sm:text-sm"
+                  onClick={() =>
+                    exportCSV(
+                      topProducts.map((p) => [p.name, p.qty, p.revenue]),
+                      ["Produit", "Quantité", "CA"],
+                      `top-produits-${from}-${to}.csv`,
+                    )
+                  }
+                >
+                  <Download className="w-3 h-3 sm:w-4 sm:h-4" /> CSV
+                </Button>
+              </CardHeader>
+              <CardContent className="px-3 sm:px-6 pb-6">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead className="text-right">Articles</TableHead>
-                      <TableHead className="text-right">Bénéfice</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Produit</TableHead>
+                      <TableHead className="text-right text-xs sm:text-sm">Quantité</TableHead>
+                      <TableHead className="text-right text-xs sm:text-sm">CA</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(sales ?? []).map((s: any) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="text-sm">{fmtDateOnly(s.created_at)}</TableCell>
-                        <TableCell>{s.customer_name ?? "—"}</TableCell>
-                        <TableCell className="text-right">{s.sale_items?.length ?? 0}</TableCell>
-                        <TableCell className="text-right text-success">{fmtMoney(s.profit)}</TableCell>
-                        <TableCell className="text-right font-medium">{fmtMoney(s.total)}</TableCell>
+                    {topProducts.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={3}
+                          className="text-center text-muted-foreground py-8 text-sm"
+                        >
+                          Aucune donnée
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {topProducts.map((p) => (
+                      <TableRow key={p.name}>
+                        <TableCell className="font-medium text-xs sm:text-sm">{p.name}</TableCell>
+                        <TableCell className="text-right text-xs sm:text-sm">{p.qty}</TableCell>
+                        <TableCell className="text-right font-medium text-xs sm:text-sm">
+                          {fmtMoney(p.revenue)}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="products" className="mt-4">
-          <Card>
-            <CardHeader className="flex-row items-center justify-between flex-wrap gap-2">
-              <CardTitle>Produits les plus vendus</CardTitle>
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => exportCSV(
-                topProducts.map((p) => [p.name, p.qty, p.revenue]),
-                ["Produit", "Quantité", "CA"],
-                `top-produits-${from}-${to}.csv`
-              )}><Download className="w-4 h-4" /> CSV</Button>
-            </CardHeader>
-            <CardContent className="px-0 sm:px-6">
-              <Table>
-                <TableHeader>
-                  <TableRow><TableHead>Produit</TableHead><TableHead className="text-right">Quantité</TableHead><TableHead className="text-right">CA</TableHead></TableRow>
-                </TableHeader>
-                <TableBody>
-                  {topProducts.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Aucune donnée</TableCell></TableRow>}
-                  {topProducts.map((p) => (
-                    <TableRow key={p.name}>
-                      <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell className="text-right">{p.qty}</TableCell>
-                      <TableCell className="text-right font-medium">{fmtMoney(p.revenue)}</TableCell>
+          <TabsContent value="stock" className="mt-4">
+            <Card>
+              <CardHeader className="flex-col sm:flex-row items-start sm:items-center justify-between flex-wrap gap-2">
+                <CardTitle className="text-base sm:text-lg">État du stock</CardTitle>
+                <Button size="sm" className="gap-2 text-xs sm:text-sm" onClick={exportStockPDF}>
+                  <FileText className="w-3 h-3 sm:w-4 sm:h-4" /> PDF
+                </Button>
+              </CardHeader>
+              <CardContent className="px-3 sm:px-6 pb-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm">Produit</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Catégorie</TableHead>
+                      <TableHead className="text-right text-xs sm:text-sm">Stock</TableHead>
+                      <TableHead className="text-right text-xs sm:text-sm">Valeur</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="stock" className="mt-4">
-          <Card>
-            <CardHeader className="flex-row items-center justify-between flex-wrap gap-2">
-              <CardTitle>État du stock</CardTitle>
-              <Button size="sm" className="gap-2" onClick={exportStockPDF}><FileText className="w-4 h-4" /> PDF</Button>
-            </CardHeader>
-            <CardContent className="px-0 sm:px-6">
-              <Table>
-                <TableHeader>
-                  <TableRow><TableHead>Produit</TableHead><TableHead>Catégorie</TableHead><TableHead className="text-right">Stock</TableHead><TableHead className="text-right">Valeur</TableHead></TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(products ?? []).map((p: any) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{p.categories?.name ?? "—"}</TableCell>
-                      <TableCell className="text-right">{p.stock}</TableCell>
-                      <TableCell className="text-right font-medium">{fmtMoney(p.stock * Number(p.purchase_price))}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  </TableHeader>
+                  <TableBody>
+                    {(products ?? []).map((p: any) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium text-xs sm:text-sm">{p.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs sm:text-sm">
+                          {p.categories?.name ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right text-xs sm:text-sm">{p.stock}</TableCell>
+                        <TableCell className="text-right font-medium text-xs sm:text-sm">
+                          {fmtMoney(p.stock * Number(p.purchase_price))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
 
-function SummaryStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function SummaryStat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
   return (
     <Card className={highlight ? "border-primary/30" : ""}>
-      <CardContent className="p-4">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-        <div className={`text-xl font-display font-bold mt-1 ${highlight ? "text-primary" : ""}`}>{value}</div>
+      <CardContent className="p-2 sm:p-4">
+        <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">
+          {label}
+        </div>
+        <div
+          className={`text-base sm:text-xl font-display font-bold mt-1 ${highlight ? "text-primary" : ""}`}
+        >
+          {value}
+        </div>
       </CardContent>
     </Card>
   );

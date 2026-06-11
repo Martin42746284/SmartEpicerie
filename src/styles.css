@@ -106,9 +106,16 @@
   --sidebar-ring: oklch(0.55 0.13 220);
 
   --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-glow));
-  --gradient-hero: linear-gradient(135deg, oklch(0.22 0.06 245), oklch(0.45 0.12 220) 70%, oklch(0.72 0.12 200));
+  --gradient-hero: linear-gradient(
+    135deg,
+    oklch(0.22 0.06 245),
+    oklch(0.45 0.12 220) 70%,
+    oklch(0.72 0.12 200)
+  );
   --shadow-elegant: 0 10px 30px -12px color-mix(in oklab, var(--primary) 28%, transparent);
-  --shadow-card: 0 1px 2px color-mix(in oklab, var(--primary) 8%, transparent), 0 4px 12px -6px color-mix(in oklab, var(--primary) 10%, transparent);
+  --shadow-card:
+    0 1px 2px color-mix(in oklab, var(--primary) 8%, transparent),
+    0 4px 12px -6px color-mix(in oklab, var(--primary) 10%, transparent);
 }
 
 .dark {
@@ -140,12 +147,20 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.01em; }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
 }
