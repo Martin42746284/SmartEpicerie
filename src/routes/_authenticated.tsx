@@ -47,6 +47,7 @@ import {
   User as UserIcon,
   Loader2,
 } from "lucide-react";
+import { OfflineStatus } from "@/components/offline-status";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -205,6 +206,7 @@ function AuthLayout() {
             <Outlet />
           </main>
         </div>
+        <OfflineStatus />
       </div>
     </SidebarProvider>
   );
